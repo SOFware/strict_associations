@@ -13,6 +13,7 @@ module StrictAssociations
       models_to_check.each do |model|
         check_habtm(model, violations)
         check_belongs_to_inverses(model, violations)
+        check_has_many_inverses(model, violations)
         check_polymorphic_inverses(model, violations)
         check_dependent_options(model, violations)
       end
@@ -91,6 +92,34 @@ module StrictAssociations
               on #{target}
             MSG
           )
+        end
+      end
+    end
+
+    def check_has_many_inverses(model, violations)
+      %i[has_many has_one].each do |macro|
+        model.reflect_on_all_associations(macro).each do |ref|
+          next if skipped?(model, ref)
+          next if ref.is_a?(ActiveRecord::Reflection::ThroughReflection)
+          next if ref.options[:as] # skip for polymorphic inverse
+
+          target = resolve_target(ref)
+          next unless target
+
+          unless belongs_to_exists?(model, ref, target)
+            violations << Violation.new(
+              model:,
+              association_name: ref.name,
+              rule: :missing_belongs_to,
+              message: <<~MSG.squish
+                #{model} has #{macro} :#{ref.name} but #{target} has no belongs_to \
+                pointing back with foreign key #{ref.foreign_key}.
+                Define the belongs_to on #{target}.
+                Or mark with strict: false.
+                Or call skip_strict_association :#{ref.name} on #{model}.
+              MSG
+            )
+          end
         end
       end
     end
@@ -206,6 +235,20 @@ module StrictAssociations
       reflection.klass
     rescue NameError
       nil
+    end
+
+    def belongs_to_exists?(source_model, has_many_ref, target)
+      fk = has_many_ref.foreign_key.to_s
+
+      target.reflect_on_all_associations(:belongs_to).any? do |ref|
+        next if ref.options[:polymorphic]
+
+        begin
+          ref.klass == source_model && ref.foreign_key.to_s == fk
+        rescue NameError
+          false
+        end
+      end
     end
 
     def inverse_exists?(source_model, belongs_to_ref, target)

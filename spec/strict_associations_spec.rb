@@ -105,6 +105,119 @@ RSpec.describe StrictAssociations do
     end
   end
 
+  # -- Rule 1b: Missing belongs_to ---
+
+  describe "missing_belongs_to rule" do
+    it "passes when belongs_to exists" do
+      author = stub_const("SaAuthor", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_authors"
+        has_many :sa_books, dependent: :destroy
+      })
+      stub_const("SaBook", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_books"
+        belongs_to :sa_author
+      })
+
+      violations = validate([author])
+      bt_violations = violations.select { |v| v.rule == :missing_belongs_to }
+      expect(bt_violations).to be_empty
+    end
+
+    it "fails when belongs_to is missing" do
+      author = stub_const("SaAuthor", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_authors"
+        has_many :sa_books, dependent: :destroy
+      })
+      stub_const("SaBook", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_books"
+      })
+
+      violations = validate([author])
+      bt = violations.find { |v| v.rule == :missing_belongs_to }
+      expect(bt).not_to be_nil
+      expect(bt.model).to eq(author)
+      expect(bt.association_name).to eq(:sa_books)
+    end
+
+    it "passes for has_many :through" do
+      book = stub_const("SaBook", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_books"
+        has_many :sa_taggings, dependent: :destroy
+        has_many :sa_tags, through: :sa_taggings
+      })
+      stub_const("SaTagging", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_taggings"
+        belongs_to :sa_book
+        belongs_to :sa_tag
+      })
+      stub_const("SaTag", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_tags"
+      })
+
+      violations = validate([book])
+      bt_violations = violations.select { |v| v.rule == :missing_belongs_to }
+      expect(bt_violations).to be_empty
+    end
+
+    it "passes for polymorphic has_many (as:)" do
+      author = stub_const("SaAuthor", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_authors"
+        has_many :sa_comments, as: :commentable, dependent: :destroy
+      })
+
+      violations = validate([author])
+      bt_violations = violations.select { |v| v.rule == :missing_belongs_to }
+      expect(bt_violations).to be_empty
+    end
+
+    it "checks has_one too" do
+      author = stub_const("SaAuthor", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_authors"
+        has_one :sa_book, dependent: :destroy
+      })
+      stub_const("SaBook", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_books"
+      })
+
+      violations = validate([author])
+      bt = violations.find { |v| v.rule == :missing_belongs_to }
+      expect(bt).not_to be_nil
+      expect(bt.association_name).to eq(:sa_book)
+    end
+
+    it "skips with strict: false" do
+      stub_const("SaAuthor", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_authors"
+        has_many :sa_books, dependent: :destroy, strict: false
+      })
+      stub_const("SaBook", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_books"
+      })
+
+      violations = validate([SaAuthor])
+      bt_violations = violations.select { |v| v.rule == :missing_belongs_to }
+      expect(bt_violations).to be_empty
+    end
+
+    it "handles class_name override" do
+      author = stub_const("SaAuthor", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_authors"
+        has_many :novels,
+          class_name: "SaBook",
+          foreign_key: :sa_author_id,
+          dependent: :destroy
+      })
+      stub_const("SaBook", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_books"
+        belongs_to :sa_author
+      })
+
+      violations = validate([author])
+      bt_violations = violations.select { |v| v.rule == :missing_belongs_to }
+      expect(bt_violations).to be_empty
+    end
+  end
+
   # -- Rule 2: Polymorphic inverse ---
 
   describe "polymorphic inverse rules" do
