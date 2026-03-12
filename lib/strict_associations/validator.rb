@@ -16,6 +16,7 @@ module StrictAssociations
         check_has_many_inverses(model, violations)
         check_polymorphic_inverses(model, violations)
         check_dependent_options(model, violations)
+        check_orphaned_foreign_keys(model, violations)
       end
 
       violations
@@ -214,6 +215,40 @@ module StrictAssociations
             )
           end
         end
+      end
+    end
+
+    def check_orphaned_foreign_keys(model, violations)
+      indexed_fk_columns = indexed_foreign_key_columns(model)
+      defined_fk_columns = model
+        .reflect_on_all_associations(:belongs_to)
+        .map { |ref| ref.foreign_key.to_s }
+
+      (indexed_fk_columns - defined_fk_columns).each do |column|
+        assoc_name = column.delete_suffix("_id").to_sym
+        next if model.strict_association_skipped?(assoc_name)
+
+        violations << Violation.new(
+          model:,
+          association_name: assoc_name,
+          rule: :orphaned_foreign_key,
+          message: <<~MSG.squish
+            #{model.table_name} has an indexed column #{column} but #{model} has no \
+            belongs_to association for it.
+            Define a belongs_to.
+            Or remove the index.
+            Or call skip_strict_association :#{assoc_name} on #{model}.
+          MSG
+        )
+      end
+    end
+
+    def indexed_foreign_key_columns(model)
+      model.connection.indexes(model.table_name).filter_map do |index|
+        column = index.columns.first
+        next unless index.columns.one? && column.end_with?("_id")
+
+        column
       end
     end
 

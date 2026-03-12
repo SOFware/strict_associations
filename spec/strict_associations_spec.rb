@@ -431,6 +431,109 @@ RSpec.describe StrictAssociations do
     end
   end
 
+  # -- Rule 5: Orphaned foreign key ---
+
+  describe "orphaned_foreign_key rule" do
+    before(:all) do
+      ActiveRecord::Base.connection.create_table(:sa_orphan_posts, force: true)
+
+      ActiveRecord::Base.connection.create_table(:sa_orphan_comments, force: true) do |t|
+        t.integer :sa_orphan_post_id
+        t.integer :author_id
+        t.string :commentable_type
+        t.integer :commentable_id
+        t.integer :score
+      end
+
+      ActiveRecord::Base.connection.add_index(:sa_orphan_comments, :sa_orphan_post_id)
+      ActiveRecord::Base.connection.add_index(:sa_orphan_comments, :author_id)
+      ActiveRecord::Base.connection.add_index(:sa_orphan_comments, :score)
+      ActiveRecord::Base.connection.add_index(
+        :sa_orphan_comments,
+        [:commentable_type, :commentable_id]
+      )
+    end
+
+    after(:all) do
+      ActiveRecord::Base.connection.drop_table(:sa_orphan_comments)
+      ActiveRecord::Base.connection.drop_table(:sa_orphan_posts)
+    end
+
+    it "fails when indexed FK column exists but no belongs_to is defined" do
+      comment = stub_const("SaOrphanComment", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_orphan_comments"
+      })
+
+      violations = validate([comment])
+      orphan = violations.select { |v| v.rule == :orphaned_foreign_key }
+      expect(orphan.map(&:association_name)).to contain_exactly(
+        :sa_orphan_post, :author
+      )
+    end
+
+    it "passes when indexed FK column has a matching belongs_to" do
+      stub_const("SaOrphanPost", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_orphan_posts"
+        has_many :sa_orphan_comments, dependent: :destroy
+      })
+      comment = stub_const("SaOrphanComment", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_orphan_comments"
+        belongs_to :sa_orphan_post
+        belongs_to :author, class_name: "SaOrphanPost", strict: false
+      })
+
+      violations = validate([comment])
+      orphan = violations.select { |v| v.rule == :orphaned_foreign_key }
+      expect(orphan).to be_empty
+    end
+
+    it "ignores composite indexes (polymorphic)" do
+      comment = stub_const("SaOrphanComment", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_orphan_comments"
+        belongs_to :sa_orphan_post
+        belongs_to :author, class_name: "SaOrphanPost", strict: false
+      })
+      stub_const("SaOrphanPost", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_orphan_posts"
+        has_many :sa_orphan_comments, dependent: :destroy
+      })
+
+      violations = validate([comment])
+      orphan = violations.select { |v| v.rule == :orphaned_foreign_key }
+      names = orphan.map(&:association_name)
+      expect(names).not_to include(:commentable)
+    end
+
+    it "ignores non-_id indexed columns" do
+      comment = stub_const("SaOrphanComment", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_orphan_comments"
+        belongs_to :sa_orphan_post
+        belongs_to :author, class_name: "SaOrphanPost", strict: false
+      })
+      stub_const("SaOrphanPost", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_orphan_posts"
+        has_many :sa_orphan_comments, dependent: :destroy
+      })
+
+      violations = validate([comment])
+      orphan = violations.select { |v| v.rule == :orphaned_foreign_key }
+      names = orphan.map(&:association_name)
+      expect(names).not_to include(:score)
+    end
+
+    it "skips with skip_strict_association" do
+      comment = stub_const("SaOrphanComment", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_orphan_comments"
+        skip_strict_association :sa_orphan_post
+        skip_strict_association :author
+      })
+
+      violations = validate([comment])
+      orphan = violations.select { |v| v.rule == :orphaned_foreign_key }
+      expect(orphan).to be_empty
+    end
+  end
+
   # -- Inline skip mechanisms ---
 
   describe "strict: false option" do
