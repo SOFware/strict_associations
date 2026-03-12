@@ -17,6 +17,7 @@ RSpec.describe StrictAssociations do
   before do
     allow(ActiveRecord::Base).to receive(:table_exists?).and_return(true)
     allow(connection).to receive(:view_exists?).and_return(false)
+    allow(Object).to receive(:const_source_location).and_return(nil)
   end
 
   def build_config
@@ -598,6 +599,131 @@ RSpec.describe StrictAssociations do
       violations = validate([SaSpecialAuthor])
       dep_violations = violations.select { |v| v.association_name == :sa_books }
       expect(dep_violations).to be_empty
+    end
+  end
+
+  # -- Third-party model skipping ---
+
+  describe "third-party model skipping" do
+    def with_source_location(model, path)
+      allow(Object).to receive(:const_source_location)
+        .with(model.name).and_return([path, 1])
+    end
+
+    it "skips models defined outside the app root" do
+      gem_path = File.expand_path(Dir.pwd) + "/../some_gem/lib/model.rb"
+      author = stub_const("SaGemAuthor", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_authors"
+        has_many :sa_books
+      })
+      with_source_location(author, gem_path)
+
+      violations = validate([author])
+      expect(violations).to be_empty
+    end
+
+    it "checks models defined inside the app root" do
+      app_path = File.expand_path(Dir.pwd) + "/app/models/author.rb"
+      author = stub_const("SaAppAuthor", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_authors"
+        has_many :sa_books
+      })
+      with_source_location(author, app_path)
+
+      violations = validate([author])
+      expect(violations).not_to be_empty
+    end
+
+    it "skips inherited associations from third-party parent" do
+      gem_path = File.expand_path(Dir.pwd) + "/../doorkeeper/lib/model.rb"
+      app_path = File.expand_path(Dir.pwd) + "/app/models/my_token.rb"
+
+      parent = stub_const("SaGemToken", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_gem_tokens"
+        has_many :sa_things, dependent: :destroy
+      })
+      with_source_location(parent, gem_path)
+
+      stub_const("SaThing", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_things"
+        belongs_to :sa_gem_token
+      })
+
+      child = stub_const("SaAppToken", Class.new(parent) {
+        has_many :sa_extras, dependent: :destroy, strict: false
+      })
+      with_source_location(child, app_path)
+
+      violations = validate([child])
+      inherited = violations.select { |v| v.association_name == :sa_things }
+      expect(inherited).to be_empty
+    end
+
+    it "checks associations defined directly on app STI subclass" do
+      gem_path = File.expand_path(Dir.pwd) + "/../doorkeeper/lib/model.rb"
+      app_path = File.expand_path(Dir.pwd) + "/app/models/my_token.rb"
+
+      parent = stub_const("SaGemToken2", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_gem_tokens"
+      })
+      with_source_location(parent, gem_path)
+
+      child = stub_const("SaAppToken2", Class.new(parent) {
+        has_many :sa_widgets, dependent: :destroy
+      })
+      with_source_location(child, app_path)
+
+      stub_const("SaWidget", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_widgets"
+      })
+
+      violations = validate([child])
+      widget_v = violations.find do |v|
+        v.association_name == :sa_widgets &&
+          v.rule == :missing_belongs_to
+      end
+      expect(widget_v).not_to be_nil
+    end
+  end
+
+  describe "owns_table? for orphaned FK checks" do
+    before(:all) do
+      ActiveRecord::Base.connection.create_table(
+        :sa_sti_parents, force: true
+      ) do |t|
+        t.string :type
+        t.integer :org_id
+      end
+
+      ActiveRecord::Base.connection.add_index(:sa_sti_parents, :org_id)
+    end
+
+    after(:all) do
+      ActiveRecord::Base.connection.drop_table(:sa_sti_parents)
+    end
+
+    it "checks orphaned FKs on the table-owning parent" do
+      parent = stub_const("SaStiParent", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_sti_parents"
+      })
+
+      violations = validate([parent])
+      orphan = violations.find do |v|
+        v.rule == :orphaned_foreign_key &&
+          v.association_name == :org
+      end
+      expect(orphan).not_to be_nil
+    end
+
+    it "skips orphaned FK checks on STI children" do
+      parent = stub_const("SaStiParent", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_sti_parents"
+      })
+      child = stub_const("SaStiChild", Class.new(parent))
+
+      violations = validate([child])
+      orphan = violations.select { |v| v.rule == :orphaned_foreign_key }
+      expect(orphan).to be_empty
     end
   end
 

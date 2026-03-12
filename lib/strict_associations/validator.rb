@@ -29,7 +29,10 @@ module StrictAssociations
     def models_to_check
       candidates = explicit_models || all_models
       candidates.reject do |model|
-        model.abstract_class? || !safe_table_exists?(model) || view?(model)
+        model.abstract_class? ||
+          !safe_table_exists?(model) ||
+          view?(model) ||
+          third_party?(model)
       end
     end
 
@@ -219,6 +222,8 @@ module StrictAssociations
     end
 
     def check_orphaned_foreign_keys(model, violations)
+      return unless owns_table?(model)
+
       indexed_fk_columns = indexed_foreign_key_columns(model)
       defined_fk_columns = model
         .reflect_on_all_associations(:belongs_to)
@@ -247,7 +252,7 @@ module StrictAssociations
       model.connection.indexes(model.table_name).filter_map do |index|
         columns = index.columns
         next unless columns.is_a?(Array) && columns.one?
-        next unless columns.first.end_with?("_id"))
+        next unless columns.first.end_with?("_id")
 
         columns.first
       end
@@ -308,7 +313,26 @@ module StrictAssociations
     end
 
     def skipped?(model, ref)
-      ref.options[:strict] == false || model.strict_association_skipped?(ref.name)
+      ref.options[:strict] == false ||
+        model.strict_association_skipped?(ref.name) || third_party?(ref.active_record)
+    end
+
+    def third_party?(model)
+      return false unless model.name
+
+      source = Object.const_source_location(model.name)&.first
+      return false unless source
+
+      !File.expand_path(source).start_with?(app_root)
+    end
+
+    def app_root
+      @app_root ||= File.expand_path(defined?(Rails) ? Rails.root.to_s : Dir.pwd)
+    end
+
+    def owns_table?(model)
+      model.superclass == ActiveRecord::Base ||
+        model.table_name != model.superclass.table_name
     end
   end
 end
