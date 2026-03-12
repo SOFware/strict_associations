@@ -217,6 +217,40 @@ RSpec.describe StrictAssociations do
       bt_violations = violations.select { |v| v.rule == :missing_belongs_to }
       expect(bt_violations).to be_empty
     end
+
+    it "passes for STI child when target belongs_to points to parent" do
+      parent = stub_const("SaCohort", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_cohorts"
+        has_many :sa_enrollments, dependent: :destroy
+      })
+      child = stub_const("SaCurriculumTemplate", Class.new(parent))
+      stub_const("SaEnrollment", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_enrollments"
+        belongs_to :sa_cohort
+      })
+
+      violations = validate([child])
+      bt_violations = violations.select { |v| v.rule == :missing_belongs_to }
+      expect(bt_violations).to be_empty
+    end
+
+    it "fails for non-STI child with different table" do
+      parent = stub_const("SaUser", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_users"
+        has_many :sa_posts, dependent: :destroy
+      })
+      child = stub_const("SaSpecialUser", Class.new(parent) {
+        self.table_name = "sa_special_users"
+      })
+      stub_const("SaPost", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_posts"
+        belongs_to :sa_user
+      })
+
+      violations = validate([child])
+      bt = violations.find { |v| v.rule == :missing_belongs_to }
+      expect(bt).not_to be_nil
+    end
   end
 
   # -- Rule 2: Polymorphic inverse ---

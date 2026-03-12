@@ -271,7 +271,13 @@ module StrictAssociations
         next if ref.options[:polymorphic]
 
         begin
-          ref.klass == source_model && ref.foreign_key.to_s == fk
+          # Use <= instead of == so STI children match a belongs_to pointing to their
+          # parent
+          # The table_name guard ensures this only applies for true STI (shared
+          # table), not unrelated inheritance with different tables.
+          source_model <= ref.klass &&
+            source_model.table_name == ref.klass.table_name &&
+            ref.foreign_key.to_s == fk
         rescue NameError
           false
         end
