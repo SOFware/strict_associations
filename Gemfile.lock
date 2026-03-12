@@ -2,8 +2,8 @@ PATH
   remote: .
   specs:
     strict_associations (0.1.0)
-      activerecord (>= 7.0)
-      railties (>= 7.0)
+      activerecord (>= 7.0, < 9)
+      railties (>= 7.0, < 9)
 
 GEM
   remote: https://rubygems.org/
@@ -220,11 +220,11 @@ PLATFORMS
   x86_64-linux-musl
 
 DEPENDENCIES
-  reissue
-  rspec
-  simplecov
-  sqlite3
-  standard
+  reissue (~> 0.4)
+  rspec (~> 3.0)
+  simplecov (~> 0.22)
+  sqlite3 (~> 2.0)
+  standard (~> 1.0)
   strict_associations!
 
 CHECKSUMS
