@@ -245,10 +245,11 @@ module StrictAssociations
 
     def indexed_foreign_key_columns(model)
       model.connection.indexes(model.table_name).filter_map do |index|
-        column = index.columns.first
-        next unless index.columns.one? && column.end_with?("_id")
+        columns = index.columns
+        next unless columns.is_a?(Array) && columns.one?
+        next unless columns.first.end_with?("_id"))
 
-        column
+        columns.first
       end
     end
 
