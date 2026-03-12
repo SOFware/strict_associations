@@ -85,10 +85,10 @@ module StrictAssociations
             rule: :missing_inverse,
             message: <<~MSG.squish
               #{target} has no has_many/has_one pointing back to \
-              #{model.table_name} with foreign key #{fk}. \
-              Define the inverse. \
-              Or mark this association with strict: false. \
-              Or call skip_strict_association :#{inverse_name} \
+              #{model.table_name} with foreign key #{fk}.
+              Define the inverse.
+              Or mark this association with strict: false.
+              Or call skip_strict_association :#{inverse_name}
               on #{target}
             MSG
           )
@@ -138,20 +138,16 @@ module StrictAssociations
             association_name: ref.name,
             rule: :unregistered_polymorphic,
             message: <<~MSG.squish
-              #{model}##{ref.name} is polymorphic but has no \
-              valid_types declared. Add valid_types: to the \
-              association. Or mark with strict: false.
+              #{model}##{ref.name} is polymorphic but has no valid_types declared.
+              Add valid_types: to the association. Or mark with strict: false.
             MSG
           )
           next
         end
 
-        type_violations, types =
-          resolved.partition { |r| r.is_a?(Violation) }
+        type_violations, types = resolved.partition { |r| r.is_a?(Violation) }
         violations.concat(type_violations)
-        check_registered_polymorphic_types(
-          model, ref, types, violations
-        )
+        check_registered_polymorphic_types(model, ref, types, violations)
       end
     end
 
@@ -168,9 +164,8 @@ module StrictAssociations
           association_name: ref.name,
           rule: :invalid_valid_type,
           message: <<~MSG.squish
-            #{model}##{ref.name} declares valid_types \
-            containing "#{t}" but #{e.message}. \
-            Check for typos in valid_types.
+            #{model}##{ref.name} declares valid_types containing "#{t}" but \
+            #{e.message}. Check for typos in valid_types.
           MSG
         )
       end
@@ -178,26 +173,20 @@ module StrictAssociations
       resolved
     end
 
-    def check_registered_polymorphic_types(
-      model, ref, types, violations
-    )
+    def check_registered_polymorphic_types(model, ref, types, violations)
       fk = ref.foreign_key.to_s
       source_table = model.table_name
 
       types.each do |type_class|
-        next if polymorphic_inverse_exists?(
-          type_class, source_table, fk
-        )
+        next if polymorphic_inverse_exists?(type_class, source_table, fk)
 
         violations << Violation.new(
           model:,
           association_name: ref.name,
           rule: :missing_polymorphic_inverse,
           message: <<~MSG.squish
-            #{type_class} is registered for \
-            #{model}##{ref.name} but has no has_many/has_one \
-            pointing back to #{source_table} with foreign \
-            key #{fk}.
+            #{type_class} is registered for #{model}##{ref.name} but has no \
+            has_many/has_one pointing back to #{source_table} with foreign key #{fk}.
           MSG
         )
       end
@@ -207,9 +196,7 @@ module StrictAssociations
       %i[has_many has_one].each do |macro|
         model.reflect_on_all_associations(macro).each do |ref|
           next if skipped?(model, ref)
-          next if ref.is_a?(
-            ActiveRecord::Reflection::ThroughReflection
-          )
+          next if ref.is_a?(ActiveRecord::Reflection::ThroughReflection)
           next if target_is_view?(ref)
 
           unless ref.options.key?(:dependent)
@@ -218,12 +205,11 @@ module StrictAssociations
               association_name: ref.name,
               rule: :missing_dependent,
               message: <<~MSG.squish
-                #{model}##{ref.name} is missing a :dependent \
-                option. Add dependent: :destroy, :delete_all, \
-                :nullify, or :restrict_with_exception. \
-                Or mark with strict: false. \
-                Or call skip_strict_association :#{ref.name} \
-                on #{model}.
+                #{model}##{ref.name} is missing a :dependent option.
+                Add dependent: :destroy, :delete_all, :nullify, or \
+                :restrict_with_exception.
+                Or mark with strict: false.
+                Or call skip_strict_association :#{ref.name} on #{model}.
               MSG
             )
           end
@@ -257,13 +243,10 @@ module StrictAssociations
 
       target.reflect_on_all_associations.any? do |ref|
         next unless %i[has_many has_one].include?(ref.macro)
-        next if ref.is_a?(
-          ActiveRecord::Reflection::ThroughReflection
-        )
+        next if ref.is_a?(ActiveRecord::Reflection::ThroughReflection)
 
         begin
-          ref.klass.table_name == source_table &&
-            ref.foreign_key.to_s == fk
+          ref.klass.table_name == source_table && ref.foreign_key.to_s == fk
         rescue NameError
           false
         end
@@ -273,13 +256,10 @@ module StrictAssociations
     def polymorphic_inverse_exists?(type, table, fk)
       type.reflect_on_all_associations.any? do |ref|
         next unless %i[has_many has_one].include?(ref.macro)
-        next if ref.is_a?(
-          ActiveRecord::Reflection::ThroughReflection
-        )
+        next if ref.is_a?(ActiveRecord::Reflection::ThroughReflection)
 
         begin
-          ref.klass.table_name == table &&
-            ref.foreign_key.to_s == fk
+          ref.klass.table_name == table && ref.foreign_key.to_s == fk
         rescue NameError
           false
         end
@@ -292,8 +272,7 @@ module StrictAssociations
     end
 
     def skipped?(model, ref)
-      ref.options[:strict] == false ||
-        model.strict_association_skipped?(ref.name)
+      ref.options[:strict] == false || model.strict_association_skipped?(ref.name)
     end
   end
 end
