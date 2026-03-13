@@ -568,7 +568,7 @@ RSpec.describe StrictAssociations do
       expect(orphan).to be_empty
     end
 
-    it "skips third-party models" do
+    it "uses third-party-aware message for third-party models" do
       gem_path = File.expand_path(Dir.pwd) + "/../some_gem/lib/model.rb"
       gem_model = stub_const("SaGemComment", Class.new(ActiveRecord::Base) {
         self.table_name = "sa_orphan_comments"
@@ -578,7 +578,11 @@ RSpec.describe StrictAssociations do
 
       violations = validate([gem_model])
       orphan = violations.select { |v| v.rule == :orphaned_foreign_key }
-      expect(orphan).to be_empty
+      expect(orphan).not_to be_empty
+      orphan.each do |v|
+        expect(v.message).to include("(third-party)")
+        expect(v.message).to include("define a has_many")
+      end
     end
 
     it "catches missing dependent on app model's has_many to third-party target" do

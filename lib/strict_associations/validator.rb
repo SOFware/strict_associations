@@ -238,9 +238,9 @@ module StrictAssociations
     end
 
     def check_orphaned_foreign_keys(model, violations)
-      return if third_party?(model)
       return unless owns_table?(model)
 
+      is_third_party = third_party?(model)
       indexed_fk_columns = indexed_foreign_key_columns(model)
       defined_fk_columns = sti_family_foreign_keys(model)
 
@@ -248,17 +248,29 @@ module StrictAssociations
         assoc_name = column.delete_suffix("_id").to_sym
         next if model.strict_association_skipped?(assoc_name)
 
-        violations << Violation.new(
-          model:,
-          association_name: assoc_name,
-          rule: :orphaned_foreign_key,
-          message: <<~MSG.squish
-            #{model.table_name} has an indexed column #{column} but #{model} has no \
-            belongs_to association for it.
+        msg = if is_third_party
+          <<~MSG.squish
+            #{model} (third-party) has an indexed column #{column} \
+            with no corresponding belongs_to. If this FK references \
+            one of your models, define a has_many on your model \
+            pointing back. Or call skip_strict_association \
+            :#{assoc_name} on #{model}.
+          MSG
+        else
+          <<~MSG.squish
+            #{model.table_name} has an indexed column #{column} but \
+            #{model} has no belongs_to association for it.
             Define a belongs_to.
             Or remove the index.
             Or call skip_strict_association :#{assoc_name} on #{model}.
           MSG
+        end
+
+        violations << Violation.new(
+          model:,
+          association_name: assoc_name,
+          rule: :orphaned_foreign_key,
+          message: msg
         )
       end
     end
