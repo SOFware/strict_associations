@@ -234,6 +234,26 @@ RSpec.describe StrictAssociations do
       expect(bt_violations).to be_empty
     end
 
+    it "skips when target is a view" do
+      author = stub_const("SaAuthor", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_authors"
+        has_many :sa_books, dependent: :destroy
+      })
+      stub_const("SaBook", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_books"
+      })
+
+      conn = author.connection
+      allow(conn).to receive(:view_exists?)
+        .with("sa_books").and_return(true)
+
+      violations = validate([author])
+      bt_violations = violations.select do |v|
+        v.rule == :missing_belongs_to
+      end
+      expect(bt_violations).to be_empty
+    end
+
     it "fails for non-STI child with different table" do
       parent = stub_const("SaUser", Class.new(ActiveRecord::Base) {
         self.table_name = "sa_users"
@@ -866,7 +886,7 @@ RSpec.describe StrictAssociations do
       expect(violations).to be_empty
     end
 
-    it "skips models backed by PostgreSQL materialized views" do
+    it "skips models backed by materialized views" do
       mview = stub_const("SaMview", Class.new(ActiveRecord::Base) {
         self.table_name = "sa_mview"
         belongs_to :sa_author
@@ -874,10 +894,7 @@ RSpec.describe StrictAssociations do
       })
 
       conn = mview.connection
-      allow(conn).to receive(:adapter_name).and_return("PostgreSQL")
-      allow(conn).to receive(:select_value)
-        .with("SELECT 1 FROM pg_matviews WHERE matviewname = 'sa_mview'")
-        .and_return(1)
+      allow(conn).to receive(:view_exists?).with("sa_mview").and_return(true)
 
       violations = validate([mview])
       expect(violations).to be_empty

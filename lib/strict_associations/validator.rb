@@ -44,20 +44,9 @@ module StrictAssociations
     end
 
     def view?(model)
-      conn = model.connection
-      table = model.table_name
-      conn.view_exists?(table) || materialized_view?(conn, table)
+      model.connection.view_exists?(model.table_name)
     rescue ActiveRecord::NoDatabaseError
       false
-    end
-
-    def materialized_view?(conn, table_name)
-      return false unless conn.adapter_name == "PostgreSQL"
-
-      conn.select_value(
-        "SELECT 1 FROM pg_matviews WHERE matviewname = " \
-        "#{conn.quote(table_name)}"
-      ).present?
     end
 
     def check_habtm(model, violations)
@@ -125,6 +114,7 @@ module StrictAssociations
           target = resolve_target(ref)
           next unless target
           next if third_party?(target)
+          next if target_is_view?(ref)
 
           unless belongs_to_exists?(model, ref, target)
             violations << Violation.new(
