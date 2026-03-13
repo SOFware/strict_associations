@@ -568,7 +568,7 @@ RSpec.describe StrictAssociations do
       expect(orphan).to be_empty
     end
 
-    it "still fires for third-party models" do
+    it "skips third-party models" do
       gem_path = File.expand_path(Dir.pwd) + "/../some_gem/lib/model.rb"
       gem_model = stub_const("SaGemComment", Class.new(ActiveRecord::Base) {
         self.table_name = "sa_orphan_comments"
@@ -578,33 +578,7 @@ RSpec.describe StrictAssociations do
 
       violations = validate([gem_model])
       orphan = violations.select { |v| v.rule == :orphaned_foreign_key }
-      expect(orphan.map(&:association_name)).to contain_exactly(
-        :sa_orphan_post, :author
-      )
-    end
-
-    it "catches missing has_many on app model for third-party target" do
-      gem_path = File.expand_path(Dir.pwd) + "/../doorkeeper/lib/token.rb"
-
-      # Third-party model with indexed FK — dev has NOT defined
-      # has_many on their app model
-      gem_model = stub_const("SaGemToken", Class.new(ActiveRecord::Base) {
-        self.table_name = "sa_orphan_comments"
-      })
-      allow(Object).to receive(:const_source_location)
-        .with("SaGemToken").and_return([gem_path, 1])
-
-      stub_const("SaOrphanPost", Class.new(ActiveRecord::Base) {
-        self.table_name = "sa_orphan_posts"
-        # No has_many :sa_gem_tokens defined — this is the gap
-      })
-
-      violations = validate([gem_model])
-      orphan = violations.find do |v|
-        v.rule == :orphaned_foreign_key &&
-          v.association_name == :sa_orphan_post
-      end
-      expect(orphan).not_to be_nil
+      expect(orphan).to be_empty
     end
 
     it "catches missing dependent on app model's has_many to third-party target" do
@@ -716,10 +690,7 @@ RSpec.describe StrictAssociations do
       with_source_location(author, gem_path)
 
       violations = validate([author])
-      assoc_violations = violations.reject do |v|
-        v.rule == :orphaned_foreign_key
-      end
-      expect(assoc_violations).to be_empty
+      expect(violations).to be_empty
     end
 
     it "checks models defined inside the app root" do
@@ -759,6 +730,51 @@ RSpec.describe StrictAssociations do
       expect(inherited).to be_empty
     end
 
+    it "catches missing has_many on app model for third-party belongs_to" do
+      gem_path = File.expand_path(Dir.pwd) + "/../doorkeeper/lib/token.rb"
+
+      gem_model = stub_const("SaGemToken3", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_gem_tokens"
+        belongs_to :sa_app_owner, class_name: "SaAppOwner"
+      })
+      with_source_location(gem_model, gem_path)
+
+      # App model missing has_many — should be caught
+      stub_const("SaAppOwner", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_app_owners"
+      })
+
+      violations = validate([gem_model])
+      inverse = violations.find do |v|
+        v.rule == :missing_inverse && v.association_name == :sa_app_owner
+      end
+      expect(inverse).not_to be_nil
+    end
+
+    it "skips has_many inverse check when target is third-party" do
+      gem_path = File.expand_path(Dir.pwd) + "/../doorkeeper/lib/token.rb"
+
+      gem_model = stub_const("SaGemToken4", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_gem_tokens"
+      })
+      with_source_location(gem_model, gem_path)
+
+      # App model has has_many to third-party — no violation since dev can't add
+      # belongs_to to third-party code
+      app_model = stub_const("SaAppUser2", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_app_users"
+        has_many :sa_gem_token4s,
+          class_name: "SaGemToken4",
+          dependent: :destroy
+      })
+
+      violations = validate([app_model])
+      bt = violations.find do |v|
+        v.rule == :missing_belongs_to && v.association_name == :sa_gem_token4s
+      end
+      expect(bt).to be_nil
+    end
+
     it "checks associations defined directly on app STI subclass" do
       gem_path = File.expand_path(Dir.pwd) + "/../doorkeeper/lib/model.rb"
       app_path = File.expand_path(Dir.pwd) + "/app/models/my_token.rb"
@@ -779,8 +795,7 @@ RSpec.describe StrictAssociations do
 
       violations = validate([child])
       widget_v = violations.find do |v|
-        v.association_name == :sa_widgets &&
-          v.rule == :missing_belongs_to
+        v.association_name == :sa_widgets && v.rule == :missing_belongs_to
       end
       expect(widget_v).not_to be_nil
     end
@@ -809,8 +824,7 @@ RSpec.describe StrictAssociations do
 
       violations = validate([parent])
       orphan = violations.find do |v|
-        v.rule == :orphaned_foreign_key &&
-          v.association_name == :org
+        v.rule == :orphaned_foreign_key && v.association_name == :org
       end
       expect(orphan).not_to be_nil
     end

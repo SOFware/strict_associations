@@ -82,11 +82,18 @@ module StrictAssociations
     def check_belongs_to_inverses(model, violations)
       refs = model.reflect_on_all_associations(:belongs_to)
       refs.each do |ref|
-        next if skipped?(model, ref)
+        next if ref.options[:strict] == false
+        next if model.strict_association_skipped?(ref.name)
         next if ref.options[:polymorphic]
 
         target = resolve_target(ref)
         next unless target
+        # Skip only when BOTH definer and target are third-party.
+        # When target is an app model, we want to verify it defines the inverse.
+        # e.g. if a 3rd party model belongs_to an app model, we should enforce that
+        # our app's models defines a has_many so we avoid our records being blocked
+        # from deletion due to fk constraints.
+        next if third_party?(ref.active_record) && third_party?(target)
 
         unless inverse_exists?(model, ref, target)
           fk = ref.foreign_key
@@ -117,6 +124,7 @@ module StrictAssociations
 
           target = resolve_target(ref)
           next unless target
+          next if third_party?(target)
 
           unless belongs_to_exists?(model, ref, target)
             violations << Violation.new(
@@ -230,6 +238,7 @@ module StrictAssociations
     end
 
     def check_orphaned_foreign_keys(model, violations)
+      return if third_party?(model)
       return unless owns_table?(model)
 
       indexed_fk_columns = indexed_foreign_key_columns(model)
