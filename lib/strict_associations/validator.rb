@@ -29,10 +29,7 @@ module StrictAssociations
     def models_to_check
       candidates = explicit_models || all_models
       candidates.reject do |model|
-        model.abstract_class? ||
-          !safe_table_exists?(model) ||
-          view?(model) ||
-          third_party?(model)
+        model.abstract_class? || !safe_table_exists?(model) || view?(model)
       end
     end
 

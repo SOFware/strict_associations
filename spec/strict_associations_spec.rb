@@ -567,6 +567,69 @@ RSpec.describe StrictAssociations do
       orphan = violations.select { |v| v.rule == :orphaned_foreign_key }
       expect(orphan).to be_empty
     end
+
+    it "still fires for third-party models" do
+      gem_path = File.expand_path(Dir.pwd) + "/../some_gem/lib/model.rb"
+      gem_model = stub_const("SaGemComment", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_orphan_comments"
+      })
+      allow(Object).to receive(:const_source_location)
+        .with("SaGemComment").and_return([gem_path, 1])
+
+      violations = validate([gem_model])
+      orphan = violations.select { |v| v.rule == :orphaned_foreign_key }
+      expect(orphan.map(&:association_name)).to contain_exactly(
+        :sa_orphan_post, :author
+      )
+    end
+
+    it "catches missing has_many on app model for third-party target" do
+      gem_path = File.expand_path(Dir.pwd) + "/../doorkeeper/lib/token.rb"
+
+      # Third-party model with indexed FK — dev has NOT defined
+      # has_many on their app model
+      gem_model = stub_const("SaGemToken", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_orphan_comments"
+      })
+      allow(Object).to receive(:const_source_location)
+        .with("SaGemToken").and_return([gem_path, 1])
+
+      stub_const("SaOrphanPost", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_orphan_posts"
+        # No has_many :sa_gem_tokens defined — this is the gap
+      })
+
+      violations = validate([gem_model])
+      orphan = violations.find do |v|
+        v.rule == :orphaned_foreign_key &&
+          v.association_name == :sa_orphan_post
+      end
+      expect(orphan).not_to be_nil
+    end
+
+    it "catches missing dependent on app model's has_many to third-party target" do
+      gem_path = File.expand_path(Dir.pwd) + "/../doorkeeper/lib/token.rb"
+
+      gem_model = stub_const("SaGemToken", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_orphan_comments"
+      })
+      allow(Object).to receive(:const_source_location)
+        .with("SaGemToken").and_return([gem_path, 1])
+
+      # Dev defined has_many but forgot dependent:
+      app_model = stub_const("SaOrphanPost", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_orphan_posts"
+        has_many :sa_gem_tokens
+      })
+
+      violations = validate([app_model, gem_model])
+      dep = violations.find do |v|
+        v.rule == :missing_dependent &&
+          v.association_name == :sa_gem_tokens
+      end
+      expect(dep).not_to be_nil
+      expect(dep.model).to eq(app_model)
+    end
   end
 
   # -- Inline skip mechanisms ---
@@ -644,7 +707,7 @@ RSpec.describe StrictAssociations do
         .with(model.name).and_return([path, 1])
     end
 
-    it "skips models defined outside the app root" do
+    it "skips association checks for third-party models" do
       gem_path = File.expand_path(Dir.pwd) + "/../some_gem/lib/model.rb"
       author = stub_const("SaGemAuthor", Class.new(ActiveRecord::Base) {
         self.table_name = "sa_authors"
@@ -653,7 +716,10 @@ RSpec.describe StrictAssociations do
       with_source_location(author, gem_path)
 
       violations = validate([author])
-      expect(violations).to be_empty
+      assoc_violations = violations.reject do |v|
+        v.rule == :orphaned_foreign_key
+      end
+      expect(assoc_violations).to be_empty
     end
 
     it "checks models defined inside the app root" do
