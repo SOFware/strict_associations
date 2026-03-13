@@ -1,0 +1,8 @@
+name: Release gem to RubyGems.org
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    uses: SOFware/reissue/.github/workflows/shared-ruby-gem-release.yml@main

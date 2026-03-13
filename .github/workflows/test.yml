@@ -9,7 +9,7 @@ name: Testing
 
 on:
   push:
-    branches-ignore: [master]
+    branches-ignore: [main]
 
 concurrency:
   group: ci-${{ github.ref }}

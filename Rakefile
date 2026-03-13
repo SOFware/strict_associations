@@ -13,4 +13,5 @@ require "reissue/gem"
 
 Reissue::Task.create :reissue do |task|
   task.version_file = "lib/strict_associations/version.rb"
+  task.fragment = :git
 end
