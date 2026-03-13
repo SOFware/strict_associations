@@ -247,6 +247,13 @@ module StrictAssociations
       (fk_columns - defined_fk_columns).each do |column|
         assoc_name = column.delete_suffix("_id").to_sym
         next if model.strict_association_skipped?(assoc_name)
+        # For third-party models, skip if any model already has a
+        # has_many/has_one pointing to this table with this FK.
+        # The dev can't add belongs_to to third-party code, but
+        # they CAN define has_many on their own model.
+        if is_third_party
+          next if has_many_covers_fk?(model, column)
+        end
 
         msg = if is_third_party
           <<~MSG.squish
@@ -296,6 +303,27 @@ module StrictAssociations
       model.connection
         .foreign_keys(model.table_name)
         .map(&:column)
+    end
+
+    # Checks if any loaded model has a has_many/has_one pointing
+    # to the given model's table with the given FK column.
+    def has_many_covers_fk?(model, fk_column)
+      table = model.table_name
+      all_models.any? do |other|
+        other.reflect_on_all_associations.any? do |ref|
+          next unless %i[has_many has_one].include?(ref.macro)
+          next if ref.is_a?(
+            ActiveRecord::Reflection::ThroughReflection
+          )
+
+          begin
+            ref.klass.table_name == table &&
+              ref.foreign_key.to_s == fk_column
+          rescue NameError
+            false
+          end
+        end
+      end
     end
 
     def resolve_target(reflection)

@@ -547,6 +547,32 @@ RSpec.describe StrictAssociations do
       end
     end
 
+    it "skips third-party FK when app model has matching has_many" do
+      gem_path = File.expand_path(Dir.pwd) + "/../doorkeeper/lib/token.rb"
+
+      gem_model = stub_const("SaGemToken2", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_orphan_comments"
+      })
+      allow(Object).to receive(:const_source_location)
+        .with("SaGemToken2").and_return([gem_path, 1])
+
+      # App model has has_many pointing back with matching FK
+      stub_const("SaOrphanPost", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_orphan_posts"
+        has_many :sa_gem_token2s,
+          class_name: "SaGemToken2",
+          foreign_key: :sa_orphan_post_id,
+          dependent: :destroy
+      })
+
+      violations = validate([gem_model, SaOrphanPost])
+      orphan = violations.find do |v|
+        v.rule == :orphaned_foreign_key &&
+          v.association_name == :sa_orphan_post
+      end
+      expect(orphan).to be_nil
+    end
+
     it "catches missing dependent on app model's has_many to third-party target" do
       gem_path = File.expand_path(Dir.pwd) + "/../doorkeeper/lib/token.rb"
 
