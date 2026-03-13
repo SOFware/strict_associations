@@ -241,16 +241,16 @@ module StrictAssociations
       return unless owns_table?(model)
 
       is_third_party = third_party?(model)
-      indexed_fk_columns = indexed_foreign_key_columns(model)
+      fk_columns = database_foreign_key_columns(model)
       defined_fk_columns = sti_family_foreign_keys(model)
 
-      (indexed_fk_columns - defined_fk_columns).each do |column|
+      (fk_columns - defined_fk_columns).each do |column|
         assoc_name = column.delete_suffix("_id").to_sym
         next if model.strict_association_skipped?(assoc_name)
 
         msg = if is_third_party
           <<~MSG.squish
-            #{model} (third-party) has an indexed column #{column} \
+            #{model} (third-party) has a foreign key #{column} \
             with no corresponding belongs_to. If this FK references \
             one of your models, define a has_many on your model \
             pointing back. Or call skip_strict_association \
@@ -258,11 +258,12 @@ module StrictAssociations
           MSG
         else
           <<~MSG.squish
-            #{model.table_name} has an indexed column #{column} but \
+            #{model.table_name} has a foreign key #{column} but \
             #{model} has no belongs_to association for it.
             Define a belongs_to.
-            Or remove the index.
-            Or call skip_strict_association :#{assoc_name} on #{model}.
+            Or remove the foreign key.
+            Or call skip_strict_association :#{assoc_name} \
+            on #{model}.
           MSG
         end
 
@@ -291,14 +292,10 @@ module StrictAssociations
       end.uniq
     end
 
-    def indexed_foreign_key_columns(model)
-      model.connection.indexes(model.table_name).filter_map do |index|
-        columns = index.columns
-        next unless columns.is_a?(Array) && columns.one?
-        next unless columns.first.end_with?("_id")
-
-        columns.first
-      end
+    def database_foreign_key_columns(model)
+      model.connection
+        .foreign_keys(model.table_name)
+        .map(&:column)
     end
 
     def resolve_target(reflection)
