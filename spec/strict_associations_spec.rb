@@ -793,6 +793,23 @@ RSpec.describe StrictAssociations do
       violations = validate([author])
       expect(violations).to be_empty
     end
+
+    it "skips models backed by PostgreSQL materialized views" do
+      mview = stub_const("SaMview", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_mview"
+        belongs_to :sa_author
+        has_many :sa_books
+      })
+
+      conn = mview.connection
+      allow(conn).to receive(:adapter_name).and_return("PostgreSQL")
+      allow(conn).to receive(:select_value)
+        .with("SELECT 1 FROM pg_matviews WHERE matviewname = 'sa_mview'")
+        .and_return(1)
+
+      violations = validate([mview])
+      expect(violations).to be_empty
+    end
   end
 
   # -- Public API ---
