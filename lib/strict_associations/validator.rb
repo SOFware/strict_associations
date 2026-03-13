@@ -225,9 +225,7 @@ module StrictAssociations
       return unless owns_table?(model)
 
       indexed_fk_columns = indexed_foreign_key_columns(model)
-      defined_fk_columns = model
-        .reflect_on_all_associations(:belongs_to)
-        .map { |ref| ref.foreign_key.to_s }
+      defined_fk_columns = sti_family_foreign_keys(model)
 
       (indexed_fk_columns - defined_fk_columns).each do |column|
         assoc_name = column.delete_suffix("_id").to_sym
@@ -246,6 +244,22 @@ module StrictAssociations
           MSG
         )
       end
+    end
+
+    # Collects belongs_to foreign keys from the model and all STI descendants sharing
+    # the same table. We check this because a belongs_to may be defined on one of the
+    # STI subclasses rather than the parent. In that case, a belongs_to IS defined,
+    # so we shouldn't raise a violation.
+    def sti_family_foreign_keys(model)
+      model_family = [model] + model.descendants.select do |descendant|
+        descendant.table_name == model.table_name
+      end
+
+      model_family.flat_map do |family_model|
+        family_model
+          .reflect_on_all_associations(:belongs_to)
+          .map { |ref| ref.foreign_key.to_s }
+      end.uniq
     end
 
     def indexed_foreign_key_columns(model)
@@ -271,12 +285,9 @@ module StrictAssociations
         next if ref.options[:polymorphic]
 
         begin
-          # Use <= instead of == so STI children match a belongs_to pointing to their
-          # parent
           # The table_name guard ensures this only applies for true STI (shared
           # table), not unrelated inheritance with different tables.
-          source_model <= ref.klass &&
-            source_model.table_name == ref.klass.table_name &&
+          source_model.table_name == ref.klass.table_name &&
             ref.foreign_key.to_s == fk
         rescue NameError
           false

@@ -759,6 +759,22 @@ RSpec.describe StrictAssociations do
       orphan = violations.select { |v| v.rule == :orphaned_foreign_key }
       expect(orphan).to be_empty
     end
+
+    it "passes when STI child defines the belongs_to" do
+      stub_const("SaOrg", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_orgs"
+      })
+      parent = stub_const("SaStiParent", Class.new(ActiveRecord::Base) {
+        self.table_name = "sa_sti_parents"
+      })
+      stub_const("SaStiChild", Class.new(parent) {
+        belongs_to :org, class_name: "SaOrg", strict: false
+      })
+
+      violations = validate([parent])
+      orphan = violations.select { |v| v.rule == :orphaned_foreign_key }
+      expect(orphan).to be_empty
+    end
   end
 
   # -- Configuration ---
