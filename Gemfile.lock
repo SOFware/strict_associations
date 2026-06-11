@@ -64,7 +64,7 @@ GEM
       prism (>= 1.3.0)
       rdoc (>= 4.0.0)
       reline (>= 0.4.2)
-    json (2.19.1)
+    json (2.19.9)
     language_server-protocol (3.17.0.5)
     lint_roller (1.1.0)
     logger (1.7.0)
@@ -90,8 +90,8 @@ GEM
       racc (~> 1.4)
     nokogiri (1.19.1-x86_64-linux-musl)
       racc (~> 1.4)
-    parallel (1.27.0)
-    parser (3.3.10.2)
+    parallel (1.28.0)
+    parser (3.3.11.1)
       ast (~> 2.4.1)
       racc
     pp (0.6.3)
@@ -132,7 +132,7 @@ GEM
       erb
       psych (>= 4.0.0)
       tsort
-    regexp_parser (2.11.3)
+    regexp_parser (2.12.0)
     reissue (0.4.21)
       rake
     reline (0.6.3)
@@ -150,11 +150,11 @@ GEM
       diff-lcs (>= 1.2.0, < 2.0)
       rspec-support (~> 3.13.0)
     rspec-support (3.13.7)
-    rubocop (1.84.2)
+    rubocop (1.87.0)
       json (~> 2.3)
       language_server-protocol (~> 3.17.0.2)
       lint_roller (~> 1.1.0)
-      parallel (~> 1.10)
+      parallel (>= 1.10)
       parser (>= 3.3.0.2)
       rainbow (>= 2.2.2, < 4.0)
       regexp_parser (>= 2.9.3, < 3.0)
@@ -184,10 +184,10 @@ GEM
     sqlite3 (2.9.1-x86_64-darwin)
     sqlite3 (2.9.1-x86_64-linux-gnu)
     sqlite3 (2.9.1-x86_64-linux-musl)
-    standard (1.54.0)
+    standard (1.55.0)
       language_server-protocol (~> 3.17.0.2)
       lint_roller (~> 1.0)
-      rubocop (~> 1.84.0)
+      rubocop (~> 1.87.0)
       standard-custom (~> 1.0.0)
       standard-performance (~> 1.8)
     standard-custom (1.0.2)
@@ -227,7 +227,6 @@ DEPENDENCIES
   standard (~> 1.0)
   strict_associations!
 
-CHECKSUMS
   actionpack (8.1.2) sha256=ced74147a1f0daafaa4bab7f677513fd4d3add574c7839958f7b4f1de44f8423
   actionview (8.1.2) sha256=80455b2588911c9b72cec22d240edacb7c150e800ef2234821269b2b2c3e2e5b
   activemodel (8.1.2) sha256=e21358c11ce68aed3f9838b7e464977bc007b4446c6e4059781e1d5c03bcf33e
@@ -249,7 +248,7 @@ CHECKSUMS
   i18n (1.14.8) sha256=285778639134865c5e0f6269e0b818256017e8cde89993fdfcbfb64d088824a5
   io-console (0.8.2) sha256=d6e3ae7a7cc7574f4b8893b4fca2162e57a825b223a177b7afa236c5ef9814cc
   irb (1.17.0) sha256=168c4ddb93d8a361a045c41d92b2952c7a118fa73f23fe14e55609eb7a863aae
-  json (2.19.1) sha256=dd94fdc59e48bff85913829a32350b3148156bc4fd2a95a2568a78b11344082d
+  json (2.19.9) sha256=9b9025b7cdddafa38d316eca0b2358488e42d417045c1b90d216a9fefe46b79a
   language_server-protocol (3.17.0.5) sha256=fd1e39a51a28bf3eec959379985a72e296e9f9acfce46f6a79d31ca8760803cc
   lint_roller (1.1.0) sha256=2c0c845b632a7d172cb849cc90c1bce937a28c5c8ccccb50dfd46a485003cc87
   logger (1.7.0) sha256=196edec7cc44b66cfb40f9755ce11b392f21f7967696af15d274dde7edff0203
@@ -263,8 +262,8 @@ CHECKSUMS
   nokogiri (1.19.1-x86_64-darwin) sha256=7093896778cc03efb74b85f915a775862730e887f2e58d6921e3fa3d981e68bf
   nokogiri (1.19.1-x86_64-linux-gnu) sha256=1a4902842a186b4f901078e692d12257678e6133858d0566152fe29cdb98456a
   nokogiri (1.19.1-x86_64-linux-musl) sha256=4267f38ad4fc7e52a2e7ee28ed494e8f9d8eb4f4b3320901d55981c7b995fc23
-  parallel (1.27.0) sha256=4ac151e1806b755fb4e2dc2332cbf0e54f2e24ba821ff2d3dcf86bf6dc4ae130
-  parser (3.3.10.2) sha256=6f60c84aa4bdcedb6d1a2434b738fe8a8136807b6adc8f7f53b97da9bc4e9357
+  parallel (1.28.0) sha256=33e6de1484baf2524792d178b0913fc8eb94c628d6cfe45599ad4458c638c970
+  parser (3.3.11.1) sha256=d17ace7aabe3e72c3cc94043714be27cc6f852f104d81aa284c2281aecc65d54
   pp (0.6.3) sha256=2951d514450b93ccfeb1df7d021cae0da16e0a7f95ee1e2273719669d0ab9df6
   prettyprint (0.2.0) sha256=2bc9e15581a94742064a3cc8b0fb9d45aae3d03a1baa6ef80922627a0766f193
   prism (1.9.0) sha256=7b530c6a9f92c24300014919c9dcbc055bf4cdf51ec30aed099b06cd6674ef85
@@ -280,7 +279,7 @@ CHECKSUMS
   rainbow (3.1.1) sha256=039491aa3a89f42efa1d6dec2fc4e62ede96eb6acd95e52f1ad581182b79bc6a
   rake (13.3.1) sha256=8c9e89d09f66a26a01264e7e3480ec0607f0c497a861ef16063604b1b08eb19c
   rdoc (7.2.0) sha256=8650f76cd4009c3b54955eb5d7e3a075c60a57276766ebf36f9085e8c9f23192
-  regexp_parser (2.11.3) sha256=ca13f381a173b7a93450e53459075c9b76a10433caadcb2f1180f2c741fc55a4
+  regexp_parser (2.12.0) sha256=35a916a1d63190ab5c9009457136ae5f3c0c7512d60291d0d1378ba18ce08ebb
   reissue (0.4.21) sha256=7fb30d10d577dd7c74c793ff2d73b5cfd091b9e3d621a1599e7b6e8a8a3f0aed
   reline (0.6.3) sha256=1198b04973565b36ec0f11542ab3f5cfeeec34823f4e54cebde90968092b1835
   rspec (3.13.2) sha256=206284a08ad798e61f86d7ca3e376718d52c0bc944626b2349266f239f820587
@@ -288,7 +287,7 @@ CHECKSUMS
   rspec-expectations (3.13.5) sha256=33a4d3a1d95060aea4c94e9f237030a8f9eae5615e9bd85718fe3a09e4b58836
   rspec-mocks (3.13.8) sha256=086ad3d3d17533f4237643de0b5c42f04b66348c28bf6b9c2d3f4a3b01af1d47
   rspec-support (3.13.7) sha256=0640e5570872aafefd79867901deeeeb40b0c9875a36b983d85f54fb7381c47c
-  rubocop (1.84.2) sha256=5692cea54168f3dc8cb79a6fe95c5424b7ea893c707ad7a4307b0585e88dbf5f
+  rubocop (1.87.0) sha256=b9d9ddf55116a513f8ef2c7ae660662d8b49301f118d3f0df61865b33a5c188d
   rubocop-ast (1.49.1) sha256=4412f3ee70f6fe4546cc489548e0f6fcf76cafcfa80fa03af67098ffed755035
   rubocop-performance (1.26.1) sha256=cd19b936ff196df85829d264b522fd4f98b6c89ad271fa52744a8c11b8f71834
   ruby-progressbar (1.13.0) sha256=80fc9c47a9b640d6834e0dc7b3c94c9df37f08cb072b7761e4a71e22cff29b33
@@ -304,7 +303,7 @@ CHECKSUMS
   sqlite3 (2.9.1-x86_64-darwin) sha256=5ce2c05eed8dc7c6debd560e2c5960e36521652b9a43bc3e42bc431db600c36f
   sqlite3 (2.9.1-x86_64-linux-gnu) sha256=1cbb644204ed143e5c96f6d59b5c571ba6f18b18a9dc5aa11c101187ff227afd
   sqlite3 (2.9.1-x86_64-linux-musl) sha256=bbd50dd1caca78b6c069701d9009ef714461495985d4c374ea1a1def061ba67c
-  standard (1.54.0) sha256=7a4b08f83d9893083c8f03bc486f0feeb6a84d48233b40829c03ef4767ea0100
+  standard (1.55.0) sha256=8a8f2c3e681a4db3aafde1b301561b0f3d7c5f06c160167cb744a4d7baf0426e
   standard-custom (1.0.2) sha256=424adc84179a074f1a2a309bb9cf7cd6bfdb2b6541f20c6bf9436c0ba22a652b
   standard-performance (1.9.0) sha256=49483d31be448292951d80e5e67cdcb576c2502103c7b40aec6f1b6e9c88e3f2
   strict_associations (0.1.9)
