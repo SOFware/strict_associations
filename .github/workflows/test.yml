@@ -27,7 +27,6 @@ jobs:
       NOTIFY_SLACK_NOTIFY_CHANNEL: "oss-notices"
       NOTIFY_CURRENT_REPOSITORY_URL: "${{ github.server_url }}/${{ github.repository }}"
       NOTIFY_TEST_RUN_ID: "${{ github.run_id }}"
-      CC_TEST_REPORTER_ID: ${{secrets.CC_TEST_REPORTER_ID}}
     steps:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
@@ -40,16 +39,8 @@ jobs:
         run: |
           # this is to fix GIT not liking owner of the checkout dir
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - uses: amancevice/setup-code-climate@v2
-        if: ${{ env.CC_TEST_REPORTER_ID != '' }}
-        with:
-          cc_test_reporter_id: ${{ secrets.CC_TEST_REPORTER_ID }}
-      - run: cc-test-reporter before-build
-        if: ${{ env.CC_TEST_REPORTER_ID != '' }}
       - name: Test
         run: bundle exec rake
-      - run: cc-test-reporter after-build
-        if: ${{ env.CC_TEST_REPORTER_ID != '' && github.event_name != 'pull_request' }}
 
   linter:
     name: Linter
